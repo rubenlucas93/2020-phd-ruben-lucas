@@ -158,7 +158,7 @@ def interpolate_lane_points(lane_points: np.ndarray, num_points: int = 20, start
         np.ndarray: Interpolated points along the extended lane, shape (num_points, 2)
     """
     if lane_points.shape[0] < 2:
-        return np.zeros((num_points, 2), dtype=np.float32)
+        return np.zeros((num_points, 2), dtype=np.int32)
 
     p0 = lane_points[0]
     p1 = lane_points[1]
@@ -2251,9 +2251,16 @@ class FollowLaneStaticWeatherNoTraffic(FollowLaneEnv):
             else:
                 # Apply the same mask to both 2D and 3D data
                 visible_center_pixels = projected_center[mask]
-                visible_center_world = center_list[mask]
+                visible_center_world = center_list[:len(mask)][mask]
 
-                # In lane_points just remove the points that are not visible because they are behind the car
+                # Trim the master list of waypoints to remove points that are now behind the car.
+                # This ensures the list follows the car's progress.
+                first_visible_index = np.where(mask)[0]
+                if len(first_visible_index) > 0:
+                    # Keep from the first visible point onwards
+                    self.lane_points["center"] = self.lane_points["center"][first_visible_index[0]:]
+
+                # In lane_points just remove the points that are not visible because they are behind the car.
                 for i, keep in enumerate(mask):
                     if keep:
                         first_true_index = i
@@ -2280,7 +2287,7 @@ class FollowLaneStaticWeatherNoTraffic(FollowLaneEnv):
                 local_metric_waypoints = np.array(local_points_2d)
 
 
-                interpolated_center = interpolate_lane_points(visible_center_pixels, n_points)
+                interpolated_center = interpolate_lane_points(visible_center_pixels, n_points, start_y=h)
                 self.last_valid_centers = interpolated_center
         return ll_segment, misalignment, center_distance, interpolated_center, local_metric_waypoints
 
