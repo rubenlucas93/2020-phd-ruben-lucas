@@ -2252,4 +2252,3 @@ if __name__ == '__main__':
     opt = parser.parse_args()
     with torch.no_grad():
         detect(opt)
-        detect(opt)
